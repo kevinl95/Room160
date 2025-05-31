@@ -1,0 +1,155 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  Room160: SMS-based AI learning assistant with teacher fallback.
+  Uses Amazon Bedrock for generative AI and routes flagged messages to educators.
+
+Parameters:
+  TeacherEmail:
+    Type: String
+    Description: Email address of the teacher who will receive student messages
+
+  EnableAI:
+    Type: String
+    AllowedValues: ["true", "false"]
+    Default: "true"
+    Description: Set to 'false' to disable AI responses and always forward messages to the teacher
+
+Resources:
+  Room160SNSTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: "Room160 Student Messages"
+      TopicName: "Room160StudentMessages"
+
+  TeacherEmailSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: email
+      Endpoint: !Ref TeacherEmail
+      TopicArn: !Ref Room160SNSTopic
+
+  Room160LambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: "Room160LambdaExecutionRole"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: "Room160LambdaPolicy"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - sns:Publish
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - bedrock:InvokeModel
+                Resource: "*"
+
+  Room160RouterFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: "Room160Router"
+      Runtime: python3.11
+      Handler: index.lambda_handler
+      Role: !GetAtt Room160LambdaRole.Arn
+      Timeout: 15
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import os
+
+          bedrock_runtime = boto3.client("bedrock-runtime")
+          sns = boto3.client("sns")
+
+          def lambda_handler(event, context):
+              record = event['Records'][0]['Sns']
+              message = record['Message']
+              sender = record.get('MessageAttributes', {}).get('SenderID', {}).get('Value', 'Unknown')
+              ai_enabled = os.environ.get("ENABLE_AI", "true") == "true"
+
+              if message.lower().startswith("@teacher") or "help" in message.lower() or not ai_enabled:
+                  sns.publish(
+                      TopicArn=os.environ['TEACHER_TOPIC_ARN'],
+                      Message=f"Student message from {sender}:\n\n{message}"
+                  )
+                  return {"statusCode": 200, "body": "Forwarded to teacher."}
+
+              try:
+                  prompt = f"\n\nHuman: You are an educational assistant for middle school students. " \
+                           f"Always be safe and educational. Do not respond to inappropriate messages.\n\n" \
+                           f"Human: {message}\n\nAssistant:"
+
+                  response = bedrock_runtime.invoke_model(
+                      modelId="anthropic.claude-3-sonnet-20240229-v1:0",
+                      body=json.dumps({
+                          "prompt": prompt,
+                          "max_tokens_to_sample": 300,
+                          "temperature": 0.5,
+                          "top_k": 250,
+                          "top_p": 0.9,
+                          "stop_sequences": ["\n\nHuman:"]
+                      }),
+                      contentType="application/json",
+                      accept="application/json"
+                  )
+
+                  result = json.loads(response['body'].read())
+                  ai_reply = result.get("completion", "Sorry, I couldn't answer that. Please ask your teacher.")
+
+                  sns.publish(
+                      PhoneNumber=sender,
+                      Message=ai_reply.strip()
+                  )
+
+              except Exception as e:
+                  print(f"AI Error: {e}")
+                  sns.publish(
+                      TopicArn=os.environ['TEACHER_TOPIC_ARN'],
+                      Message=f"AI failed to respond to message from {sender}:\n\n{message}"
+                  )
+                  sns.publish(
+                      PhoneNumber=sender,
+                      Message="I'm not sure how to answer that. Please ask your teacher."
+                  )
+
+              return {"statusCode": 200, "body": "Response sent."}
+      Environment:
+        Variables:
+          TEACHER_TOPIC_ARN: !Ref Room160SNSTopic
+          ENABLE_AI: !Ref EnableAI
+
+  Room160LambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref Room160RouterFunction
+      Action: lambda:InvokeFunction
+      Principal: sns.amazonaws.com
+      SourceArn: !Ref Room160SNSTopic
+
+Outputs:
+  TeacherEmailTopic:
+    Description: "SNS topic to receive student messages"
+    Value: !Ref Room160SNSTopic
+
+  LambdaFunctionName:
+    Description: "Lambda function that routes SMS messages"
+    Value: !Ref Room160RouterFunction
+
+  DeploymentInstructions:
+    Description: "Use the EnableAI parameter to toggle AI mode. Student questions with @teacher will always go to the teacher."
+    Value: "Set EnableAI to 'false' to disable AI and run in teacher-only mode."
