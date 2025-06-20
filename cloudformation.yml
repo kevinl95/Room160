@@ -161,7 +161,7 @@ Resources:
               sender = record.get('MessageAttributes', {}).get('SenderID', {}).get('Value', 'Unknown')
               ai_enabled = os.environ.get("ENABLE_AI", "true") == "true"
 
-              if message.lower().startswith("@teacher") or "help" in message.lower() or not ai_enabled:
+              if message.lower().startswith("@teacher") or not ai_enabled:
                   sns.publish(
                       TopicArn=os.environ['TEACHER_TOPIC_ARN'],
                       Message=f"Student message from {sender}:\n\n{message}"
