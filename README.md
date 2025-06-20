@@ -1,5 +1,7 @@
 # Room160: SMS Homework Help for Every Student
 
+[![Lint CloudFormation Template](https://github.com/kevinl95/Room160/actions/workflows/main.yml/badge.svg)](https://github.com/kevinl95/Room160/actions/workflows/main.yml)
+
 ## Why Room160?
 
 Many students struggle with homework at home but lack reliable internet access to get help online. However, most families have access to basic cell phones with SMS texting. Room160 bridges this gap by letting students text their homework questions and receive immediate help - either from AI or directly from you, their teacher, from your email inbox. You will get a special number you can give families and respond from your school email, making it easy to protect your privacy and your off time while providing a high-quality resource for your students.
