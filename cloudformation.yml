@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: >
-  Room160: SMS-based AI learning assistant with teacher fallback.
+  TextTutor: SMS-based AI learning assistant with teacher fallback.
   Uses Amazon Bedrock for generative AI and routes flagged messages to educators.
 
 Parameters:
@@ -12,26 +12,26 @@ Parameters:
     Type: String
     AllowedValues: ["true", "false"]
     Default: "true"
-    Description: Set to 'false' to disable AI responses and always forward messages to the teacher
+    Description: Set to 'false' to disable AI responses and always forward to teacher
 
 Resources:
-  Room160SNSTopic:
+  TextTutorSNSTopic:
     Type: AWS::SNS::Topic
     Properties:
-      DisplayName: "Room160 Student Messages"
-      TopicName: "Room160StudentMessages"
+      DisplayName: "TextTutor Student Messages"
+      TopicName: "TextTutorStudentMessages"
 
   TeacherEmailSubscription:
     Type: AWS::SNS::Subscription
     Properties:
       Protocol: email
       Endpoint: !Ref TeacherEmail
-      TopicArn: !Ref Room160SNSTopic
+      TopicArn: !Ref TextTutorSNSTopic
 
-  Room160LambdaRole:
+  TextTutorLambdaRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: "Room160LambdaExecutionRole"
+      RoleName: "TextTutorLambdaExecutionRole"
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -40,7 +40,7 @@ Resources:
               Service: lambda.amazonaws.com
             Action: sts:AssumeRole
       Policies:
-        - PolicyName: "Room160LambdaPolicy"
+        - PolicyName: "TextTutorLambdaPolicy"
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
@@ -59,13 +59,13 @@ Resources:
                   - bedrock:InvokeModel
                 Resource: "*"
 
-  Room160RouterFunction:
+  TextTutorRouterFunction:
     Type: AWS::Lambda::Function
     Properties:
-      FunctionName: "Room160Router"
+      FunctionName: "TextTutorRouter"
       Runtime: python3.11
       Handler: index.lambda_handler
-      Role: !GetAtt Room160LambdaRole.Arn
+      Role: !GetAtt TextTutorLambdaRole.Arn
       Timeout: 15
       Code:
         ZipFile: |
@@ -130,25 +130,25 @@ Resources:
               return {"statusCode": 200, "body": "Response sent."}
       Environment:
         Variables:
-          TEACHER_TOPIC_ARN: !Ref Room160SNSTopic
+          TEACHER_TOPIC_ARN: !Ref TextTutorSNSTopic
           ENABLE_AI: !Ref EnableAI
 
-  Room160LambdaPermission:
+  TextTutorLambdaPermission:
     Type: AWS::Lambda::Permission
     Properties:
-      FunctionName: !Ref Room160RouterFunction
+      FunctionName: !Ref TextTutorRouterFunction
       Action: lambda:InvokeFunction
       Principal: sns.amazonaws.com
-      SourceArn: !Ref Room160SNSTopic
+      SourceArn: !Ref TextTutorSNSTopic
 
 Outputs:
   TeacherEmailTopic:
     Description: "SNS topic to receive student messages"
-    Value: !Ref Room160SNSTopic
+    Value: !Ref TextTutorSNSTopic
 
   LambdaFunctionName:
     Description: "Lambda function that routes SMS messages"
-    Value: !Ref Room160RouterFunction
+    Value: !Ref TextTutorRouterFunction
 
   DeploymentInstructions:
     Description: "Use the EnableAI parameter to toggle AI mode. Student questions with @teacher will always go to the teacher."
