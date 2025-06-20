@@ -170,7 +170,9 @@ Resources:
 
               try:
                   prompt = f"\n\nHuman: You are an educational assistant for school students. " \
-                           f"Always be safe and educational. Do not respond to inappropriate messages.\n\n" \
+                           f"Your responses will be sent via SMS to mobile phones, so keep answers concise but helpful. " \
+                           f"Use simple language and short sentences. Always be safe and educational. " \
+                           f"Do not respond to inappropriate messages.\n\n" \
                            f"Human: {message}\n\nAssistant:"
 
                   response = bedrock_runtime.invoke_model(
@@ -190,7 +192,7 @@ Resources:
                   result = json.loads(response['body'].read())
                   ai_reply = result.get("completion", "Sorry, I couldn't answer that. Please ask your teacher.")
 
-                  # Send SMS response via Pinpoint
+                  # Send SMS response via Pinpoint (supports multi-part)
                   pinpoint = boto3.client('pinpoint')
                   pinpoint.send_messages(
                       ApplicationId=os.environ['PINPOINT_APP_ID'],
@@ -200,7 +202,7 @@ Resources:
                           },
                           'MessageConfiguration': {
                               'SMSMessage': {
-                                  'Body': ai_reply.strip()[:160],  # SMS length limit
+                                  'Body': ai_reply.strip(),  # Pinpoint handles multi-part automatically
                                   'MessageType': 'TRANSACTIONAL'
                               }
                           }
