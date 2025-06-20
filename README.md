@@ -20,6 +20,7 @@ Many students struggle with homework at home but lack reliable internet access t
 - Works with any basic cell phone - no smartphone or internet required for your students
 
 **What does Room160 mean?**
+
 SMS messages are capped at 160 characters, so the project name is a playful reference to this underlying technology. Room160 will send multi-part responses, however, so you don't need to worry about message length limits!
 
 ## How It Works
