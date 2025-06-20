@@ -14,7 +14,87 @@ Parameters:
     Default: "true"
     Description: Set to 'false' to disable AI responses and always forward to teacher
 
+  PinpointProjectName:
+    Type: String
+    Default: "Room160SMS"
+    Description: Name for the Pinpoint project
+
 Resources:
+  # Pinpoint SMS Integration
+  PinpointProject:
+    Type: AWS::Pinpoint::App
+    Properties:
+      Name: !Ref PinpointProjectName
+
+  PinpointSMSChannel:
+    Type: AWS::Pinpoint::SMSChannel
+    Properties:
+      ApplicationId: !Ref PinpointProject
+      Enabled: true
+
+  # Lambda URL for direct SMS webhook (simpler than API Gateway)
+  SMSWebhookFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: "Room160-SMS-Webhook"
+      Runtime: python3.11
+      Handler: index.lambda_handler
+      Role: !GetAtt Room160LambdaRole.Arn
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import urllib.parse
+          import os
+
+          sns = boto3.client('sns')
+
+          def lambda_handler(event, context):
+              try:
+                  # Handle direct invocation for testing
+                  if 'body' not in event:
+                      message = event.get('message', 'Test message')
+                      sender = event.get('sender', '+1234567890')
+                  else:
+                      # Parse webhook from SMS provider
+                      if event.get('headers', {}).get('content-type', '').startswith('application/x-www-form-urlencoded'):
+                          body = urllib.parse.parse_qs(event['body'])
+                          message = body.get('Body', [''])[0]
+                          sender = body.get('From', ['Unknown'])[0]
+                      else:
+                          body = json.loads(event['body']) if event['body'] else {}
+                          message = body.get('Body', body.get('message', ''))
+                          sender = body.get('From', body.get('from', 'Unknown'))
+
+                  # Publish to SNS topic for processing
+                  sns.publish(
+                      TopicArn=os.environ['SNS_TOPIC_ARN'],
+                      Message=message,
+                      MessageAttributes={
+                          'SenderID': {'DataType': 'String', 'StringValue': sender}
+                      }
+                  )
+
+                  return {
+                      'statusCode': 200,
+                      'body': json.dumps({'message': 'SMS received and processed'})
+                  }
+              except Exception as e:
+                  print(f"Error processing SMS: {e}")
+                  return {'statusCode': 500, 'body': f'Error: {str(e)}'}
+      Environment:
+        Variables:
+          SNS_TOPIC_ARN: !Ref Room160SNSTopic
+
+  SMSWebhookURL:
+    Type: AWS::Lambda::Url
+    Properties:
+      TargetFunctionArn: !Ref SMSWebhookFunction
+      AuthType: NONE
+      Cors:
+        AllowMethods: ["POST"]
+        AllowOrigins: ["*"]
+
   Room160SNSTopic:
     Type: AWS::SNS::Topic
     Properties:
@@ -58,6 +138,10 @@ Resources:
                 Action:
                   - bedrock:InvokeModel
                 Resource: "*"
+              - Effect: Allow
+                Action:
+                  - mobiletargeting:SendMessages
+                Resource: "*"
 
   Room160RouterFunction:
     Type: AWS::Lambda::Function
@@ -90,7 +174,7 @@ Resources:
                   return {"statusCode": 200, "body": "Forwarded to teacher."}
 
               try:
-                  prompt = f"\n\nHuman: You are an educational assistant for middle school students. " \
+                  prompt = f"\n\nHuman: You are an educational assistant for school students. " \
                            f"Always be safe and educational. Do not respond to inappropriate messages.\n\n" \
                            f"Human: {message}\n\nAssistant:"
 
@@ -111,9 +195,21 @@ Resources:
                   result = json.loads(response['body'].read())
                   ai_reply = result.get("completion", "Sorry, I couldn't answer that. Please ask your teacher.")
 
-                  sns.publish(
-                      PhoneNumber=sender,
-                      Message=ai_reply.strip()
+                  # Send SMS response via Pinpoint
+                  pinpoint = boto3.client('pinpoint')
+                  pinpoint.send_messages(
+                      ApplicationId=os.environ['PINPOINT_APP_ID'],
+                      MessageRequest={
+                          'Addresses': {
+                              sender: {'ChannelType': 'SMS'}
+                          },
+                          'MessageConfiguration': {
+                              'SMSMessage': {
+                                  'Body': ai_reply.strip()[:160],  # SMS length limit
+                                  'MessageType': 'TRANSACTIONAL'
+                              }
+                          }
+                      }
                   )
 
               except Exception as e:
@@ -122,9 +218,21 @@ Resources:
                       TopicArn=os.environ['TEACHER_TOPIC_ARN'],
                       Message=f"AI failed to respond to message from {sender}:\n\n{message}"
                   )
-                  sns.publish(
-                      PhoneNumber=sender,
-                      Message="I'm not sure how to answer that. Please ask your teacher."
+                  # Send error SMS via Pinpoint
+                  pinpoint = boto3.client('pinpoint')
+                  pinpoint.send_messages(
+                      ApplicationId=os.environ['PINPOINT_APP_ID'],
+                      MessageRequest={
+                          'Addresses': {
+                              sender: {'ChannelType': 'SMS'}
+                          },
+                          'MessageConfiguration': {
+                              'SMSMessage': {
+                                  'Body': "I'm not sure how to answer that. Please ask your teacher.",
+                                  'MessageType': 'TRANSACTIONAL'
+                              }
+                          }
+                      }
                   )
 
               return {"statusCode": 200, "body": "Response sent."}
@@ -132,6 +240,7 @@ Resources:
         Variables:
           TEACHER_TOPIC_ARN: !Ref Room160SNSTopic
           ENABLE_AI: !Ref EnableAI
+          PINPOINT_APP_ID: !Ref PinpointProject
 
   Room160LambdaPermission:
     Type: AWS::Lambda::Permission
@@ -142,14 +251,15 @@ Resources:
       SourceArn: !Ref Room160SNSTopic
 
 Outputs:
-  TeacherEmailTopic:
-    Description: "SNS topic to receive student messages"
-    Value: !Ref Room160SNSTopic
+  SMSWebhookURL:
+    Description: "Webhook URL for SMS integration"
+    Value: !GetAtt SMSWebhookURL.FunctionUrl
 
-  LambdaFunctionName:
-    Description: "Lambda function that routes SMS messages"
-    Value: !Ref Room160RouterFunction
+  PinpointApplicationId:
+    Description: "Pinpoint Application ID for SMS sending"
+    Value: !Ref PinpointProject
 
-  DeploymentInstructions:
-    Description: "Use the EnableAI parameter to toggle AI mode. Student questions with @teacher will always go to the teacher."
-    Value: "Set EnableAI to 'false' to disable AI and run in teacher-only mode."
+  SetupInstructions:
+    Description: "Complete setup guide"
+    Value: "STEP 1: Get SMS number from Twilio ($1/month) or similar. STEP 2: Configure webhook to SMSWebhookURL. STEP 3: Students can now text your number!"
+
