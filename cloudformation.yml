@@ -14,17 +14,12 @@ Parameters:
     Default: "true"
     Description: Set to 'false' to disable AI responses and always forward to teacher
 
-  PinpointProjectName:
-    Type: String
-    Default: "Room160SMS"
-    Description: Name for the Pinpoint project
-
 Resources:
   # Pinpoint SMS Integration
   PinpointProject:
     Type: AWS::Pinpoint::App
     Properties:
-      Name: !Ref PinpointProjectName
+      Name: !Sub "${AWS::StackName}-SMS"
 
   PinpointSMSChannel:
     Type: AWS::Pinpoint::SMSChannel
