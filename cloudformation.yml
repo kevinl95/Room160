@@ -138,8 +138,8 @@ Resources:
                       # Store in DynamoDB
                       table.put_item(Item={'phoneNumber': clean_phone})
                       
-                      # Send welcome message via TextBelt (include teacher email for sender requirements)
-                      welcome_msg = f"Welcome to homework help from {os.environ['TEACHER_EMAIL']}! Text your questions here. Start messages with @teacher to reach your teacher directly."
+                      # Send welcome message via TextBelt (avoid including email to prevent URL detection)
+                      welcome_msg = "Welcome to Room160 homework help! Text your questions here for instant AI assistance. Start messages with @teacher to reach your teacher directly."
                       # Get API key from Parameter Store
                       ssm = boto3.client('ssm')
                       api_key = ssm.get_parameter(
@@ -158,6 +158,8 @@ Resources:
                       req = urllib.request.Request('https://textbelt.com/text', data=data, method='POST')
                       req.add_header('Content-Type', 'application/x-www-form-urlencoded')
                       response = urllib.request.urlopen(req)
+                      response_data = response.read().decode('utf-8')
+                      print(f"TextBelt response: {response_data}")
                       
                       enrolled.append({'phone': clean_phone, 'status': 'enrolled'})
                   
@@ -181,9 +183,9 @@ Resources:
                           <div class="success">
                               <strong>Successfully enrolled {len(enrolled)} students:</strong>
                           </div>
-                          {''.join([f'<div class="student">✓ {student["phone"]}</div>' for student in enrolled])}
+                          {''.join([f'<div class="student">{student["phone"]}</div>' for student in enrolled])}
                           <p>All students have been sent welcome messages and can now text homework questions!</p>
-                          <p><a href="{event.get('requestContext', {}).get('domainName', '')}{event.get('requestContext', {}).get('path', '')}">← Enroll More Students</a></p>
+                          <p><a href="#" onclick="window.location.reload()">Enroll More Students</a></p>
                       </body>
                       </html>'''
                       return {
@@ -364,7 +366,6 @@ Resources:
   Room160LambdaRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: "Room160LambdaExecutionRole"
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
