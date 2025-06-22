@@ -63,38 +63,38 @@ Resources:
                   # Handle GET request - serve HTML form
                   if event.get('httpMethod') == 'GET' or event.get('requestContext', {}).get('http', {}).get('method') == 'GET':
                       html_form = '''
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Room160 - Enroll Students</title>
-    <style>
-        body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
-        h1 { color: #333; }
-        textarea { width: 100%; height: 200px; margin: 10px 0; padding: 10px; }
-        button { background: #007cba; color: white; padding: 15px 30px; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; }
-        button:hover { background: #005a87; }
-        .instructions { background: #f0f8ff; padding: 15px; border-radius: 5px; margin: 20px 0; }
-    </style>
-</head>
-<body>
-    <h1>Room160 Student Enrollment</h1>
-    <div class="instructions">
-        <h3>Instructions:</h3>
-        <p>Enter student phone numbers below, one per line. You can use any format:</p>
-        <ul>
-            <li>555-123-4567</li>
-            <li>(555) 123-4567</li>
-            <li>5551234567</li>
-            <li>+1 555 123 4567</li>
-        </ul>
-    </div>
-    <form method="POST">
-        <label for="numbers"><strong>Student Phone Numbers:</strong></label><br>
-        <textarea name="numbers" id="numbers" placeholder="555-123-4567\n555-987-6543\n555-555-5555"></textarea><br>
-        <button type="submit">Enroll Students & Send Welcome Messages</button>
-    </form>
-</body>
-</html>'''
+                        <!DOCTYPE html>
+                        <html>
+                        <head>
+                            <title>Room160 - Enroll Students</title>
+                            <style>
+                                body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
+                                h1 { color: #333; }
+                                textarea { width: 100%; height: 200px; margin: 10px 0; padding: 10px; }
+                                button { background: #007cba; color: white; padding: 15px 30px; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; }
+                                button:hover { background: #005a87; }
+                                .instructions { background: #f0f8ff; padding: 15px; border-radius: 5px; margin: 20px 0; }
+                            </style>
+                        </head>
+                        <body>
+                            <h1>Room160 Student Enrollment</h1>
+                            <div class="instructions">
+                                <h3>Instructions:</h3>
+                                <p>Enter student phone numbers below, one per line. You can use any format:</p>
+                                <ul>
+                                    <li>555-123-4567</li>
+                                    <li>(555) 123-4567</li>
+                                    <li>5551234567</li>
+                                    <li>+1 555 123 4567</li>
+                                </ul>
+                            </div>
+                            <form method="POST">
+                                <label for="numbers"><strong>Student Phone Numbers:</strong></label><br>
+                                <textarea name="numbers" id="numbers" placeholder="555-123-4567\n555-987-6543\n555-555-5555"></textarea><br>
+                                <button type="submit">Enroll Students & Send Welcome Messages</button>
+                            </form>
+                        </body>
+                        </html>'''
                       return {
                           'statusCode': 200,
                           'headers': {'Content-Type': 'text/html'},
