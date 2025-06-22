@@ -14,9 +14,10 @@ Many students struggle with homework at home but lack reliable internet access t
 - Parents may not be able to help with advanced coursework
 
 **How Room160 Helps:**
-- Students text questions to a dedicated phone number
-- AI provides instant, educational responses for most questions
-- All interactions with you occur via your school email, making it easy to disengage, flag content for administration, and preserve your privacy.
+- Students text homework questions to get instant AI help or reach you directly
+- AI provides immediate, educational responses for most questions
+- You receive email notifications when students need your help
+- **Important:** You respond by texting students directly (not by replying to emails)
 - Works with any basic cell phone - no smartphone or internet required for your students
 
 **What does Room160 mean?**
@@ -27,9 +28,10 @@ SMS messages are capped at 160 characters, so the project name is a playful refe
 
 1. **Student texts a question** to your Room160 phone number
 2. **Messages are routed**
-   - Messages starting with "@teacher" → Go directly to your email
-   - Questions and queries can be answered by AI. A student-friendly Claude 3 agent is deployed to Amazon Bedrock for general student help and questions.
-3. **You stay in control** - receive email notifications and can disable AI anytime
+   - Messages starting with "@teacher" → You get email notification with student's phone number
+   - Other questions → AI responds automatically via SMS
+3. **You respond via SMS** - Email notifications include the student's phone number for you to text back directly
+4. **You stay in control** - Receive email alerts and can disable AI anytime
 
 ## Getting Started
 
@@ -85,7 +87,8 @@ Click the "Launch Stack" button below to set up Room160 in your AWS account:
 
 **Direct to Teacher:**
 - Student: "@teacher I'm confused about the essay assignment"
-- System: Forwards message to your email immediately
+- System: Sends email notification to teacher with student's phone number
+- Teacher: Texts student directly at the provided number to help with assignment
 
 **Science Question:**
 - Student: "Why do leaves change color?"
@@ -95,16 +98,24 @@ Click the "Launch Stack" button below to set up Room160 in your AWS account:
 
 - **Content filtering** - AI won't respond to inappropriate messages
 - **Teacher override** - Students can always reach you directly with "@teacher"
-- **No personal data** - Students only need to know the SMS number
-- **Audit trail** - Messages to you are received at you school email
+- **Email notifications only** - You get alerts via email but respond via SMS to maintain privacy
+- **No personal phone exposure** - Students never see your personal number
+- **Audit trail** - All student messages are logged and you're notified via email
 
 ## Managing Your Room160
+
+### How Teacher Responses Work
+**Important:** Email notifications are one-way alerts only. To respond to students:
+1. **Read the email notification** - Contains student's message and phone number
+2. **Text the student directly** - Use the phone number provided in the email
+3. **Student receives your SMS** - They can continue the conversation via text
 
 ### Disable AI Temporarily
 If you want all messages to come to you instead of AI:
 1. Go to your AWS CloudFormation console
 2. Update your stack
 3. Change "EnableAI" to "false"
+4. **Note:** You'll get email notifications for ALL student messages and need to respond via SMS
 
 ### Cost Management
 - AI responses cost ~$0.01-0.05 each
