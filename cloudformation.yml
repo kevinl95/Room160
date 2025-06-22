@@ -14,18 +14,212 @@ Parameters:
     Default: "true"
     Description: Set to 'false' to disable AI responses and always forward to teacher
 
-Resources:
-  # Pinpoint SMS Integration
-  PinpointProject:
-    Type: AWS::Pinpoint::App
-    Properties:
-      Name: !Sub "${AWS::StackName}-SMS"
+  TextBeltAPIKey:
+    Type: String
+    NoEcho: true
+    Description: Your TextBelt API key for sending SMS messages
 
-  PinpointSMSChannel:
-    Type: AWS::Pinpoint::SMSChannel
+Resources:
+  # Secure storage for TextBelt API key
+  TextBeltKeyParameter:
+    Type: AWS::SSM::Parameter
     Properties:
-      ApplicationId: !Ref PinpointProject
-      Enabled: true
+      Name: !Sub "/${AWS::StackName}/textbelt-api-key"
+      Type: SecureString
+      Value: !Ref TextBeltAPIKey
+      Description: "TextBelt API key for Room160 SMS functionality"
+  # Student enrollment system
+  StudentTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub "${AWS::StackName}-Students"
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: phoneNumber
+          AttributeType: S
+      KeySchema:
+        - AttributeName: phoneNumber
+          KeyType: HASH
+
+  EnrollmentFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${AWS::StackName}-Enrollment"
+      Runtime: python3.11
+      Handler: index.lambda_handler
+      Role: !GetAtt Room160LambdaRole.Arn
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import requests
+          import os
+
+          dynamodb = boto3.resource('dynamodb')
+          table = dynamodb.Table(os.environ['STUDENT_TABLE'])
+
+          def lambda_handler(event, context):
+              try:
+                  # Handle GET request - serve HTML form
+                  if event.get('httpMethod') == 'GET' or event.get('requestContext', {}).get('http', {}).get('method') == 'GET':
+                      html_form = '''
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Room160 - Enroll Students</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
+        h1 { color: #333; }
+        textarea { width: 100%; height: 200px; margin: 10px 0; padding: 10px; }
+        button { background: #007cba; color: white; padding: 15px 30px; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; }
+        button:hover { background: #005a87; }
+        .instructions { background: #f0f8ff; padding: 15px; border-radius: 5px; margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <h1>Room160 Student Enrollment</h1>
+    <div class="instructions">
+        <h3>Instructions:</h3>
+        <p>Enter student phone numbers below, one per line. You can use any format:</p>
+        <ul>
+            <li>555-123-4567</li>
+            <li>(555) 123-4567</li>
+            <li>5551234567</li>
+            <li>+1 555 123 4567</li>
+        </ul>
+    </div>
+    <form method="POST">
+        <label for="numbers"><strong>Student Phone Numbers:</strong></label><br>
+        <textarea name="numbers" id="numbers" placeholder="555-123-4567\n555-987-6543\n555-555-5555"></textarea><br>
+        <button type="submit">Enroll Students & Send Welcome Messages</button>
+    </form>
+</body>
+</html>'''
+                      return {
+                          'statusCode': 200,
+                          'headers': {'Content-Type': 'text/html'},
+                          'body': html_form
+                      }
+                  
+                  # Handle POST request - process enrollment
+                  if event.get('body'):
+                      # Check if it's form data or JSON
+                      content_type = event.get('headers', {}).get('content-type', '')
+                      if 'application/x-www-form-urlencoded' in content_type:
+                          # Parse form data
+                          import urllib.parse
+                          form_data = urllib.parse.parse_qs(event['body'])
+                          numbers_text = form_data.get('numbers', [''])[0]
+                          students = [line.strip() for line in numbers_text.split('\n') if line.strip()]
+                      else:
+                          # Parse JSON data
+                          body = json.loads(event['body'])
+                          students = body.get('students', [])
+                  else:
+                      students = []
+                  
+                  enrolled = []
+                  for phone in students:
+                      # Clean phone number
+                      clean_phone = ''.join(filter(str.isdigit, phone))
+                      if len(clean_phone) == 10:
+                          clean_phone = '+1' + clean_phone
+                      elif len(clean_phone) == 11 and clean_phone.startswith('1'):
+                          clean_phone = '+' + clean_phone
+                      
+                      # Store in DynamoDB
+                      table.put_item(Item={'phoneNumber': clean_phone})
+                      
+                      # Send welcome message via TextBelt
+                      welcome_msg = "Welcome to Room160! Text your homework questions here. Start with @teacher to reach your teacher directly."
+                      # Get API key from Parameter Store
+                      ssm = boto3.client('ssm')
+                      api_key = ssm.get_parameter(
+                          Name=os.environ['TEXTBELT_KEY_PARAM'],
+                          WithDecryption=True
+                      )['Parameter']['Value']
+                      
+                      response = requests.post('https://textbelt.com/text', {
+                          'phone': clean_phone,
+                          'message': welcome_msg,
+                          'replyWebhookUrl': os.environ['WEBHOOK_URL'],
+                          'key': api_key
+                      })
+                      
+                      enrolled.append({'phone': clean_phone, 'status': 'enrolled'})
+                  
+                  # Return HTML response for form submission
+                  if event.get('headers', {}).get('content-type', '').startswith('application/x-www-form-urlencoded'):
+                      success_html = f'''
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Room160 - Enrollment Complete</title>
+    <style>
+        body {{ font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }}
+        .success {{ background: #d4edda; color: #155724; padding: 15px; border-radius: 5px; margin: 20px 0; }}
+        .student {{ background: #f8f9fa; padding: 10px; margin: 5px 0; border-radius: 3px; }}
+        a {{ color: #007cba; text-decoration: none; }}
+        a:hover {{ text-decoration: underline; }}
+    </style>
+</head>
+<body>
+    <h1>Enrollment Complete!</h1>
+    <div class="success">
+        <strong>Successfully enrolled {len(enrolled)} students:</strong>
+    </div>
+    {''.join([f'<div class="student">✓ {student["phone"]}</div>' for student in enrolled])}
+    <p>All students have been sent welcome messages and can now text homework questions!</p>
+    <p><a href="{event.get('requestContext', {}).get('domainName', '')}{event.get('requestContext', {}).get('path', '')}">← Enroll More Students</a></p>
+</body>
+</html>'''
+                      return {
+                          'statusCode': 200,
+                          'headers': {'Content-Type': 'text/html'},
+                          'body': success_html
+                      }
+                  else:
+                      # Return JSON for API calls
+                      return {
+                          'statusCode': 200,
+                          'body': json.dumps({'enrolled': enrolled})
+                      }
+              except Exception as e:
+                  error_html = f'''
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Room160 - Error</title>
+    <style>
+        body {{ font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }}
+        .error {{ background: #f8d7da; color: #721c24; padding: 15px; border-radius: 5px; margin: 20px 0; }}
+        a {{ color: #007cba; text-decoration: none; }}
+    </style>
+</head>
+<body>
+    <h1>Enrollment Error</h1>
+    <div class="error">
+        <strong>Error:</strong> {str(e)}
+    </div>
+    <p><a href="{event.get('requestContext', {}).get('domainName', '')}{event.get('requestContext', {}).get('path', '')}">← Try Again</a></p>
+</body>
+</html>'''
+                  return {
+                      'statusCode': 500,
+                      'headers': {'Content-Type': 'text/html'},
+                      'body': error_html
+                  }
+      Environment:
+        Variables:
+          STUDENT_TABLE: !Ref StudentTable
+          TEXTBELT_KEY_PARAM: !Ref TextBeltKeyParameter
+          WEBHOOK_URL: !GetAtt SMSWebhookURL.FunctionUrl
+
+  EnrollmentURL:
+    Type: AWS::Lambda::Url
+    Properties:
+      TargetFunctionArn: !Ref EnrollmentFunction
+      AuthType: NONE
 
   # Lambda URL for direct SMS webhook (simpler than API Gateway)
   SMSWebhookFunction:
@@ -51,15 +245,10 @@ Resources:
                       message = event.get('message', 'Test message')
                       sender = event.get('sender', '+1234567890')
                   else:
-                      # Parse webhook from SMS provider
-                      if event.get('headers', {}).get('content-type', '').startswith('application/x-www-form-urlencoded'):
-                          body = urllib.parse.parse_qs(event['body'])
-                          message = body.get('Body', [''])[0]
-                          sender = body.get('From', ['Unknown'])[0]
-                      else:
-                          body = json.loads(event['body']) if event['body'] else {}
-                          message = body.get('Body', body.get('message', ''))
-                          sender = body.get('From', body.get('from', 'Unknown'))
+                      # Parse TextBelt webhook format
+                      body = json.loads(event['body']) if event['body'] else {}
+                      message = body.get('text', '')
+                      sender = body.get('fromNumber', 'Unknown')
 
                   # Publish to SNS topic for processing
                   sns.publish(
@@ -135,8 +324,14 @@ Resources:
                 Resource: "*"
               - Effect: Allow
                 Action:
-                  - mobiletargeting:SendMessages
-                Resource: "*"
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:Scan
+                Resource: !GetAtt StudentTable.Arn
+              - Effect: Allow
+                Action:
+                  - ssm:GetParameter
+                Resource: !Ref TextBeltKeyParameter
 
   Room160RouterFunction:
     Type: AWS::Lambda::Function
@@ -192,22 +387,19 @@ Resources:
                   result = json.loads(response['body'].read())
                   ai_reply = result.get("completion", "Sorry, I couldn't answer that. Please ask your teacher.")
 
-                  # Send SMS response via Pinpoint (supports multi-part)
-                  pinpoint = boto3.client('pinpoint')
-                  pinpoint.send_messages(
-                      ApplicationId=os.environ['PINPOINT_APP_ID'],
-                      MessageRequest={
-                          'Addresses': {
-                              sender: {'ChannelType': 'SMS'}
-                          },
-                          'MessageConfiguration': {
-                              'SMSMessage': {
-                                  'Body': ai_reply.strip(),  # Pinpoint handles multi-part automatically
-                                  'MessageType': 'TRANSACTIONAL'
-                              }
-                          }
-                      }
-                  )
+                  # Send SMS response via TextBelt
+                  import requests
+                  ssm = boto3.client('ssm')
+                  api_key = ssm.get_parameter(
+                      Name=os.environ['TEXTBELT_KEY_PARAM'],
+                      WithDecryption=True
+                  )['Parameter']['Value']
+                  
+                  requests.post('https://textbelt.com/text', {
+                      'phone': sender,
+                      'message': ai_reply.strip(),
+                      'key': api_key
+                  })
 
               except Exception as e:
                   print(f"AI Error: {e}")
@@ -215,29 +407,26 @@ Resources:
                       TopicArn=os.environ['TEACHER_TOPIC_ARN'],
                       Message=f"AI failed to respond to message from {sender}:\n\n{message}"
                   )
-                  # Send error SMS via Pinpoint
-                  pinpoint = boto3.client('pinpoint')
-                  pinpoint.send_messages(
-                      ApplicationId=os.environ['PINPOINT_APP_ID'],
-                      MessageRequest={
-                          'Addresses': {
-                              sender: {'ChannelType': 'SMS'}
-                          },
-                          'MessageConfiguration': {
-                              'SMSMessage': {
-                                  'Body': "I'm not sure how to answer that. Please ask your teacher.",
-                                  'MessageType': 'TRANSACTIONAL'
-                              }
-                          }
-                      }
-                  )
+                  # Send error SMS via TextBelt
+                  import requests
+                  ssm = boto3.client('ssm')
+                  api_key = ssm.get_parameter(
+                      Name=os.environ['TEXTBELT_KEY_PARAM'],
+                      WithDecryption=True
+                  )['Parameter']['Value']
+                  
+                  requests.post('https://textbelt.com/text', {
+                      'phone': sender,
+                      'message': "I'm not sure how to answer that. Please ask your teacher.",
+                      'key': api_key
+                  })
 
               return {"statusCode": 200, "body": "Response sent."}
       Environment:
         Variables:
           TEACHER_TOPIC_ARN: !Ref Room160SNSTopic
           ENABLE_AI: !Ref EnableAI
-          PINPOINT_APP_ID: !Ref PinpointProject
+          TEXTBELT_KEY_PARAM: !Ref TextBeltKeyParameter
 
   Room160LambdaPermission:
     Type: AWS::Lambda::Permission
@@ -256,7 +445,11 @@ Outputs:
     Description: "Pinpoint Application ID for SMS sending"
     Value: !Ref PinpointProject
 
+  EnrollmentURL:
+    Description: "URL to enroll students (POST JSON with student phone numbers)"
+    Value: !GetAtt EnrollmentURL.FunctionUrl
+
   SetupInstructions:
     Description: "Complete setup guide"
-    Value: "STEP 1: Get SMS number from Twilio ($1/month) or similar. STEP 2: Configure webhook to SMSWebhookURL. STEP 3: Students can now text your number!"
+    Value: "STEP 1: Get TextBelt API key. STEP 2: Use EnrollmentURL to add students. STEP 3: Students will receive welcome messages and can start texting questions!"
 
