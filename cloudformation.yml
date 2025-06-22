@@ -459,10 +459,12 @@ Resources:
           import boto3
           import os
 
-          client = boto3.client("bedrock-runtime", region_name=os.environ['AWS_REGION'])
           sns = boto3.client("sns")
 
           def lambda_handler(event, context):
+              # Get region from Lambda context and initialize Bedrock client
+              region = context.invoked_function_arn.split(':')[3]
+              client = boto3.client("bedrock-runtime", region_name=region)
               print(f"Router Lambda invoked with event: {json.dumps(event)}")
               
               record = event['Records'][0]['Sns']
@@ -504,7 +506,8 @@ Resources:
                   print(f"Bedrock response received")
                   result = json.loads(response['body'].read())
                   ai_reply = result.get("content", [{}])[0].get("text", "Sorry, I couldn't answer that. Please ask your teacher.")
-                  print(f"AI reply: {ai_reply[:100]}...")
+                  print(f"AI reply (first 200 chars): {ai_reply[:200]}...")
+                  print(f"Full AI reply length: {len(ai_reply)} characters")
 
                   # Send SMS response via TextBelt
                   import urllib.request
@@ -517,7 +520,7 @@ Resources:
                       WithDecryption=True
                   )['Parameter']['Value']
                   
-                  print(f"Sending SMS to {sender}")
+                  print(f"Sending SMS to {sender} (message length: {len(ai_reply.strip())} chars)")
                   data = urllib.parse.urlencode({
                       'phone': sender,
                       'message': ai_reply.strip(),
@@ -529,6 +532,7 @@ Resources:
                   textbelt_response = urllib.request.urlopen(req)
                   textbelt_result = textbelt_response.read().decode('utf-8')
                   print(f"TextBelt response: {textbelt_result}")
+                  print(f"SMS sent successfully to {sender}")
 
               except Exception as e:
                   print(f"AI Error: {e}")
@@ -575,7 +579,6 @@ Resources:
           TEACHER_TOPIC_ARN: !Ref Room160SNSTopic
           ENABLE_AI: !Ref EnableAI
           TEXTBELT_KEY_PARAM: !Ref TextBeltKeyParameter
-          AWS_REGION: !Ref AWS::Region
 
   Room160LambdaPermission:
     Type: AWS::Lambda::Permission

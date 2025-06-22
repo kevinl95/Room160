@@ -16,8 +16,7 @@ Many students struggle with homework at home but lack reliable internet access t
 **How Room160 Helps:**
 - Students text homework questions to get instant AI help or reach you directly
 - AI provides immediate, educational responses for most questions
-- You receive email notifications when students need your help
-- **Important:** You respond by texting students directly (not by replying to emails)
+- You receive email notifications when students contact you
 - Works with any basic cell phone - no smartphone or internet required for your students
 
 **What does Room160 mean?**
@@ -30,12 +29,30 @@ SMS messages are capped at 160 characters, so the project name is a playful refe
 2. **Messages are routed**
    - Messages starting with "@teacher" → You get email notification with student's phone number
    - Other questions → AI responds automatically via SMS
-3. **You respond via SMS** - Email notifications include the student's phone number for you to text back directly
+3. **Tracability** - Email notifications include the student's phone number
 4. **You stay in control** - Receive email alerts and can disable AI anytime
 
 ## Getting Started
 
-### Step 1: Deploy Room160 to AWS
+### Step 1: Enable AI Models in AWS (Required!)
+
+**⚠️ IMPORTANT:** AWS requires manual approval for ALL AI models. This is unfortunately unavoidable.
+
+1. **Go to Amazon Bedrock Console**
+   - Visit https://console.aws.amazon.com/bedrock/
+   - Choose a region: **us-east-1** (Virginia) has the most models available
+
+2. **Request Model Access**
+   - Click "Model access" in the left sidebar
+   - Find "Anthropic" section
+   - Check **Claude 3 Haiku** (fastest, cheapest)
+   - Click "Request model access"
+   - Wait 1-5 minutes for automatic approval
+
+3. **Verify Access**
+   - Status should change from "Pending" to "Access granted"
+
+### Step 2: Deploy Room160 to AWS
 
 Click the "Launch Stack" button below to set up Room160 in your AWS account:
 
@@ -50,7 +67,7 @@ Click the "Launch Stack" button below to set up Room160 in your AWS account:
 
 **AI Technology:** Uses Claude 3 Haiku for fast, cost-effective student responses
 
-### Step 2: Get Your TextBelt API Key
+### Step 3: Get Your TextBelt API Key
 
 1. **Sign up for TextBelt**
    - Go to [textbelt.com](https://textbelt.com)
@@ -63,7 +80,7 @@ Click the "Launch Stack" button below to set up Room160 in your AWS account:
    - TextBelt handles all SMS routing automatically
    - No phone numbers to buy or configure!
 
-### Step 3: Enroll Your Students
+### Step 4: Enroll Your Students
 
 1. **Visit Your Enrollment Page**
    - Find the "EnrollmentURL" in your CloudFormation outputs
@@ -128,7 +145,13 @@ If you want all messages to come to you instead of AI:
 
 ## Troubleshooting
 
-**Students aren't getting responses:**
+**Students aren't getting AI responses:**
+- **Most common issue:** You need to enable Claude models in Bedrock console
+- Go to https://console.aws.amazon.com/bedrock/ → "Model access"
+- Request access to Claude 3 Haiku or Claude v2
+- Wait for approval (usually 1-5 minutes)
+
+**Students aren't getting any responses:**
 - Check that your TextBelt API key is valid
 - Verify students were properly enrolled through the web form
 - Ensure your AWS deployment completed successfully
@@ -163,7 +186,8 @@ Room160 is designed to be simple and reliable. Most issues can be resolved by:
 1. Checking your TextBelt account status and credits
 2. Verifying student enrollment through the web interface
 3. Ensuring your AWS deployment completed successfully
-4. Checking that Claude 3 Haiku is available in your AWS region
+4. **Most important:** Enabling Claude models in Amazon Bedrock console
+5. Checking that Claude 3 Haiku is available in your AWS region (use us-east-1 for best availability)
 
 For technical support, check the AWS CloudFormation console for any error messages.
 
