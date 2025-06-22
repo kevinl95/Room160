@@ -25,10 +25,9 @@ Resources:
     Type: AWS::SSM::Parameter
     Properties:
       Name: !Sub "/${AWS::StackName}/textbelt-api-key"
-      Type: SecureString
+      Type: String
       Value: !Ref TextBeltAPIKey
       Description: "TextBelt API key for Room160 SMS functionality"
-      KmsKeyId: alias/aws/ssm
   # Student enrollment system
   StudentTable:
     Type: AWS::DynamoDB::Table
