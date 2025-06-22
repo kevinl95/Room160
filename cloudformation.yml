@@ -60,8 +60,9 @@ Resources:
 
           def lambda_handler(event, context):
               try:
-                  # Handle GET request - serve HTML form
-                  if event.get('httpMethod') == 'GET' or event.get('requestContext', {}).get('http', {}).get('method') == 'GET':
+                  # Handle GET request - serve HTML form (Lambda URL format)
+                  request_method = event.get('requestContext', {}).get('http', {}).get('method', 'GET')
+                  if request_method == 'GET':
                       html_form = '''
                       <!DOCTYPE html>
                       <html>
@@ -439,19 +440,6 @@ Resources:
       SourceArn: !Ref Room160SNSTopic
 
 Outputs:
-  SMSWebhookURL:
-    Description: "Webhook URL for SMS integration"
-    Value: !GetAtt SMSWebhookURL.FunctionUrl
-
-  TextBeltInfo:
-    Description: "TextBelt integration active - SMS handled via TextBelt API"
-    Value: "TextBelt API configured successfully"
-
   EnrollmentURL:
     Description: "URL to enroll students (POST JSON with student phone numbers)"
     Value: !GetAtt EnrollmentURL.FunctionUrl
-
-  SetupInstructions:
-    Description: "Complete setup guide"
-    Value: "STEP 1: Get TextBelt API key. STEP 2: Use EnrollmentURL to add students. STEP 3: Students will receive welcome messages and can start texting questions!"
-
