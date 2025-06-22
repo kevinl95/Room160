@@ -130,8 +130,8 @@ Resources:
                       # Store in DynamoDB
                       table.put_item(Item={'phoneNumber': clean_phone})
                       
-                      # Send welcome message via TextBelt
-                      welcome_msg = "Welcome to Room160! Text your homework questions here. Start with @teacher to reach your teacher directly."
+                      # Send welcome message via TextBelt (include teacher email for sender requirements)
+                      welcome_msg = f"Welcome to homework help from {os.environ['TEACHER_EMAIL']}! Text your questions here. Start messages with @teacher to reach your teacher directly."
                       # Get API key from Parameter Store
                       ssm = boto3.client('ssm')
                       api_key = ssm.get_parameter(
@@ -214,6 +214,7 @@ Resources:
           STUDENT_TABLE: !Ref StudentTable
           TEXTBELT_KEY_PARAM: !Ref TextBeltKeyParameter
           WEBHOOK_URL: !GetAtt SMSWebhookURL.FunctionUrl
+          TEACHER_EMAIL: !Ref TeacherEmail
 
   EnrollmentURL:
     Type: AWS::Lambda::Url
@@ -367,6 +368,7 @@ Resources:
                   prompt = f"\n\nHuman: You are an educational assistant for school students. " \
                            f"Your responses will be sent via SMS to mobile phones, so keep answers concise but helpful. " \
                            f"Use simple language and short sentences. Always be safe and educational. " \
+                           f"NEVER include URLs, links, or web addresses in your responses. " \
                            f"Do not respond to inappropriate messages.\n\n" \
                            f"Human: {message}\n\nAssistant:"
 
