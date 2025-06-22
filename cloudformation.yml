@@ -441,9 +441,9 @@ Outputs:
     Description: "Webhook URL for SMS integration"
     Value: !GetAtt SMSWebhookURL.FunctionUrl
 
-  PinpointApplicationId:
-    Description: "Pinpoint Application ID for SMS sending"
-    Value: !Ref PinpointProject
+  TextBeltInfo:
+    Description: "TextBelt integration active - SMS handled via TextBelt API"
+    Value: "TextBelt API configured successfully"
 
   EnrollmentURL:
     Description: "URL to enroll students (POST JSON with student phone numbers)"
