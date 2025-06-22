@@ -42,28 +42,40 @@ Click the "Launch Stack" button below to set up Room160 in your AWS account:
 **You'll need to provide:**
 - **Your email address** - Where student messages will be forwarded
 - **AI Mode** - Choose "Enable" for AI assistance or "Disable" for teacher-only mode
+- **TextBelt API Key** - Simple SMS service (get free key at [textbelt.com](https://textbelt.com))
 
-**Cost:** Approximately $5-15/month depending on usage (AWS charges for AI responses and SMS)
+**Cost:** Approximately $3-12/month depending on usage (AWS charges + $0.01 per SMS message)
 
-### Step 2: Get Your SMS Phone Number
+### Step 2: Get Your TextBelt API Key
 
-After deployment, you'll need a phone number for students to text:
+1. **Sign up for TextBelt**
+   - Go to [textbelt.com](https://textbelt.com)
+   - Create a free account (no business verification required!)
+   - Get your API key from the dashboard
+   - Much simpler than traditional SMS providers
 
-1. **Sign up for Twilio** (recommended SMS provider)
-   - Go to [twilio.com](https://twilio.com)
-   - Create a free account
-   - Purchase a phone number (~$1/month)
+2. **Add API Key to Room160**
+   - Your API key was entered during CloudFormation deployment
+   - TextBelt handles all SMS routing automatically
+   - No phone numbers to buy or configure!
 
-2. **Connect Twilio to Room160**
-   - In your Twilio console, find "Webhooks" settings
-   - Copy the "SMSWebhookURL" from your AWS deployment
-   - Paste it as your webhook URL in Twilio
+### Step 3: Enroll Your Students
 
-### Step 3: Share with Students
+1. **Visit Your Enrollment Page**
+   - Find the "EnrollmentURL" in your CloudFormation outputs
+   - Click the link to open the student enrollment form
 
-Give students your new SMS number and these simple instructions:
+2. **Add Student Phone Numbers**
+   - Copy/paste student phone numbers into the form
+   - Use any format: 555-123-4567, (555) 123-4567, or 5551234567
+   - One number per line
 
-**"Text your homework questions to [YOUR-NUMBER]. For urgent questions or if you need to reach me directly, start your message with @teacher"**
+3. **Click "Enroll Students"**
+   - Students automatically receive welcome messages
+   - They can immediately start texting homework questions!
+
+**Student Instructions:**
+*"You've been enrolled in Room160! Text your homework questions to get instant help. Start your message with @teacher to reach me directly."*
 
 ## Student Examples
 
@@ -102,19 +114,24 @@ If you want all messages to come to you instead of AI:
 ## Troubleshooting
 
 **Students aren't getting responses:**
-- Check that Twilio webhook is configured correctly
-- Verify your AWS deployment completed successfully
+- Check that your TextBelt API key is valid
+- Verify students were properly enrolled through the web form
+- Ensure your AWS deployment completed successfully
+
+**Students not receiving welcome messages:**
+- Double-check phone number formats in the enrollment form
+- Verify TextBelt account has sufficient credits
 
 **High costs:**
+- Monitor TextBelt usage in their dashboard
 - Set usage limits in AWS
 - Consider disabling AI during non-homework hours
-- Monitor which types of questions generate the most AI usage
 
 ## Support
 
 Room160 is designed to be simple and reliable. Most issues can be resolved by:
-1. Checking your Twilio webhook configuration
-2. Verifying your email address in AWS
+1. Checking your TextBelt account status and credits
+2. Verifying student enrollment through the web interface
 3. Ensuring your AWS deployment completed successfully
 
 For technical support, check the AWS CloudFormation console for any error messages.
