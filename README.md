@@ -56,7 +56,8 @@ SMS messages are capped at 160 characters, so the project name is a playful refe
 
 Click the "Launch Stack" button below to set up Room160 in your AWS account:
 
-[🚀 **Launch Room160 Stack**](s3-link-coming-soon)
+[![Launch Stack](https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png)](https://console.aws.amazon.com/cloudformation/home#/stacks/create/review?templateURL=https://room160.s3.us-east-2.amazonaws.com/cloudformation.yml)
+
 
 **You'll need to provide:**
 - **Your email address** - Where student messages will be forwarded
