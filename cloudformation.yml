@@ -159,7 +159,6 @@ Resources:
                       req.add_header('Content-Type', 'application/x-www-form-urlencoded')
                       response = urllib.request.urlopen(req)
                       response_data = response.read().decode('utf-8')
-                      print(f"TextBelt response: {response_data}")
                       
                       enrolled.append({'phone': clean_phone, 'status': 'enrolled'})
                   
@@ -185,7 +184,7 @@ Resources:
                           </div>
                           {''.join([f'<div class="student">{student["phone"]}</div>' for student in enrolled])}
                           <p>All students have been sent welcome messages and can now text homework questions!</p>
-                          <p><a href="#" onclick="window.location.reload()">Enroll More Students</a></p>
+                          <p><a href="/prod/enroll">Enroll More Students</a></p>
                       </body>
                       </html>'''
                       return {
@@ -311,15 +310,24 @@ Resources:
 
           def lambda_handler(event, context):
               try:
+                  # Debug: log the entire event
+                  print(f"Webhook event received: {json.dumps(event)}")
+                  
                   # Handle direct invocation for testing
                   if 'body' not in event:
                       message = event.get('message', 'Test message')
                       sender = event.get('sender', '+1234567890')
+                      print(f"Direct invocation - Message: {message}, Sender: {sender}")
                   else:
-                      # Parse TextBelt webhook format
+                      # Parse TextBelt webhook format (JSON payload)
                       body = json.loads(event['body']) if event['body'] else {}
+                      print(f"TextBelt webhook body: {body}")
+                      
                       message = body.get('text', '')
                       sender = body.get('fromNumber', 'Unknown')
+                      text_id = body.get('textId', 'Unknown')
+                      
+                      print(f"Parsed - Message: {message}, Sender: {sender}, TextID: {text_id}")
 
                   # Publish to SNS topic for processing
                   sns.publish(
@@ -330,6 +338,7 @@ Resources:
                       }
                   )
 
+                  print(f"Successfully published to SNS topic: {os.environ['SNS_TOPIC_ARN']}")
                   return {
                       'statusCode': 200,
                       'body': json.dumps({'message': 'SMS received and processed'})
