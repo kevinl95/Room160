@@ -233,7 +233,7 @@ Resources:
         Variables:
           STUDENT_TABLE: !Ref StudentTable
           TEXTBELT_KEY_PARAM: !Ref TextBeltKeyParameter
-          WEBHOOK_URL: !GetAtt SMSWebhookURL.FunctionUrl
+          WEBHOOK_URL: !Sub "https://${SMSWebhookAPI}.execute-api.${AWS::Region}.amazonaws.com/prod/webhook"
           TEACHER_EMAIL: !Ref TeacherEmail
 
   # API Gateway for enrollment form
@@ -350,14 +350,46 @@ Resources:
         Variables:
           SNS_TOPIC_ARN: !Ref Room160SNSTopic
 
-  SMSWebhookURL:
-    Type: AWS::Lambda::Url
+  # API Gateway for SMS webhook
+  SMSWebhookAPI:
+    Type: AWS::ApiGateway::RestApi
     Properties:
-      TargetFunctionArn: !Ref SMSWebhookFunction
-      AuthType: NONE
-      Cors:
-        AllowMethods: ["POST"]
-        AllowOrigins: ["*"]
+      Name: "Room160-SMS-Webhook-API"
+      Description: "API for TextBelt SMS webhook"
+
+  SMSWebhookResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref SMSWebhookAPI
+      ParentId: !GetAtt SMSWebhookAPI.RootResourceId
+      PathPart: "webhook"
+
+  SMSWebhookMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref SMSWebhookAPI
+      ResourceId: !Ref SMSWebhookResource
+      HttpMethod: POST
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${SMSWebhookFunction.Arn}/invocations"
+
+  SMSWebhookDeployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn: SMSWebhookMethod
+    Properties:
+      RestApiId: !Ref SMSWebhookAPI
+      StageName: "prod"
+
+  SMSWebhookLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref SMSWebhookFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${SMSWebhookAPI}/*/*"
 
   Room160SNSTopic:
     Type: AWS::SNS::Topic
