@@ -452,14 +452,14 @@ Resources:
       Runtime: python3.11
       Handler: index.lambda_handler
       Role: !GetAtt Room160LambdaRole.Arn
-      Timeout: 120
+      Timeout: 60
       Code:
         ZipFile: |
           import json
           import boto3
           import os
 
-          bedrock_runtime = boto3.client("bedrock-runtime")
+          client = boto3.client("bedrock-runtime", region_name=os.environ['AWS_REGION'])
           sns = boto3.client("sns")
 
           def lambda_handler(event, context):
@@ -484,29 +484,21 @@ Resources:
               try:
                   print(f"Processing AI request for message: {message}")
                   
-                  prompt = f"\n\nHuman: You are an educational assistant for school students. " \
-                           f"Your responses will be sent via SMS to mobile phones, so keep answers concise but helpful. " \
-                           f"Use simple language and short sentences. Always be safe and educational. " \
-                           f"NEVER include URLs, links, or web addresses in your responses. " \
-                           f"Do not respond to inappropriate messages.\n\n" \
-                           f"Human: {message}\n\nAssistant:"
-
-                  print(f"Calling Bedrock with prompt length: {len(prompt)}")
+                  print(f"Calling Bedrock for message: {message[:50]}...")
                   
-                  response = bedrock_runtime.invoke_model(
-                      modelId="anthropic.claude-3-5-sonnet-20240620-v1:0",
+                  response = client.invoke_model(
+                      modelId="anthropic.claude-3-haiku-20240307-v1:0",
                       body=json.dumps({
                           "anthropic_version": "bedrock-2023-05-31",
-                          "max_tokens": 300,
+                          "max_tokens": 512,
+                          "temperature": 0.5,
                           "messages": [
                               {
                                   "role": "user",
-                                  "content": f"You are an educational assistant for school students. Your responses will be sent via SMS to mobile phones, so keep answers concise but helpful. Use simple language and short sentences. Always be safe and educational. NEVER include URLs, links, or web addresses in your responses. Do not respond to inappropriate messages.\n\n{message}"
+                                  "content": [{"type": "text", "text": f"You are an educational assistant for school students. Your responses will be sent via SMS to mobile phones, so keep answers concise but helpful. Use simple language and short sentences. Always be safe and educational. NEVER include URLs, links, or web addresses in your responses. Do not respond to inappropriate messages.\n\n{message}"}]
                               }
                           ]
-                      }),
-                      contentType="application/json",
-                      accept="application/json"
+                      })
                   )
 
                   print(f"Bedrock response received")
@@ -583,6 +575,7 @@ Resources:
           TEACHER_TOPIC_ARN: !Ref Room160SNSTopic
           ENABLE_AI: !Ref EnableAI
           TEXTBELT_KEY_PARAM: !Ref TextBeltKeyParameter
+          AWS_REGION: !Ref AWS::Region
 
   Room160LambdaPermission:
     Type: AWS::Lambda::Permission

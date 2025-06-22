@@ -46,7 +46,9 @@ Click the "Launch Stack" button below to set up Room160 in your AWS account:
 - **AI Mode** - Choose "Enable" for AI assistance or "Disable" for teacher-only mode
 - **TextBelt API Key** - Simple SMS service (get free key at [textbelt.com](https://textbelt.com))
 
-**Cost:** Approximately $3-12/month depending on usage (AWS charges + $0.01 per SMS message)
+**Cost:** Approximately $2-8/month depending on usage (AWS charges + TextBelt SMS costs)
+
+**AI Technology:** Uses Claude 3 Haiku for fast, cost-effective student responses
 
 ### Step 2: Get Your TextBelt API Key
 
@@ -83,7 +85,7 @@ Click the "Launch Stack" button below to set up Room160 in your AWS account:
 
 **Math Help:**
 - Student: "What is 2x + 5 = 15?"
-- AI: "To solve 2x + 5 = 15: Subtract 5 from both sides: 2x = 10. Divide by 2: x = 5. Check: 2(5) + 5 = 15 ✓"
+- AI (Claude 3 Haiku): "To solve 2x + 5 = 15: Subtract 5 from both sides: 2x = 10. Divide by 2: x = 5. Check: 2(5) + 5 = 15 ✓"
 
 **Direct to Teacher:**
 - Student: "@teacher I'm confused about the essay assignment"
@@ -92,7 +94,7 @@ Click the "Launch Stack" button below to set up Room160 in your AWS account:
 
 **Science Question:**
 - Student: "Why do leaves change color?"
-- AI: "Leaves change color in fall because they stop making green chlorophyll. This reveals other colors like yellow and red that were always there but hidden by the green."
+- AI (Claude 3 Haiku): "Leaves change color in fall because they stop making green chlorophyll. This reveals other colors like yellow and red that were always there but hidden by the green."
 
 ## Safety Features
 
@@ -118,8 +120,10 @@ If you want all messages to come to you instead of AI:
 4. **Note:** You'll get email notifications for ALL student messages and need to respond via SMS
 
 ### Cost Management
-- AI responses cost ~$0.01-0.05 each
-- SMS messages cost ~$0.0075 each
+- **AI responses:** ~$0.001-0.003 each (Claude 3 Haiku is very affordable!)
+- **SMS messages:** ~$0.0075 each via TextBelt
+- **AWS infrastructure:** ~$1-3/month for Lambda, SNS, DynamoDB
+- **Total typical cost:** $2-8/month for a classroom of 30 students
 - Set up AWS billing alerts to monitor spending
 
 ## Troubleshooting
@@ -138,12 +142,28 @@ If you want all messages to come to you instead of AI:
 - Set usage limits in AWS
 - Consider disabling AI during non-homework hours
 
+## Technical Details
+
+**AI Model:** Claude 3 Haiku by Anthropic
+- **Speed:** 2-5 second response times
+- **Cost:** ~10x cheaper than GPT-4 or Claude 3 Sonnet
+- **Quality:** Excellent for educational content and homework help
+- **Safety:** Built-in content filtering and educational focus
+
+**AWS Services Used:**
+- **Amazon Bedrock** - AI model hosting
+- **AWS Lambda** - Message processing
+- **Amazon SNS** - Email notifications
+- **Amazon DynamoDB** - Student enrollment storage
+- **API Gateway** - Webhook endpoints
+
 ## Support
 
 Room160 is designed to be simple and reliable. Most issues can be resolved by:
 1. Checking your TextBelt account status and credits
 2. Verifying student enrollment through the web interface
 3. Ensuring your AWS deployment completed successfully
+4. Checking that Claude 3 Haiku is available in your AWS region
 
 For technical support, check the AWS CloudFormation console for any error messages.
 
