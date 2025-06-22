@@ -105,7 +105,8 @@ Resources:
                       return {
                           'statusCode': 200,
                           'headers': {'Content-Type': 'text/html'},
-                          'body': html_form
+                          'body': html_form,
+                          'isBase64Encoded': False
                       }
                   
                   # Handle POST request - process enrollment
@@ -188,7 +189,8 @@ Resources:
                       return {
                           'statusCode': 200,
                           'headers': {'Content-Type': 'text/html'},
-                          'body': success_html
+                          'body': success_html,
+                          'isBase64Encoded': False
                       }
                   else:
                       # Return JSON for API calls
@@ -223,7 +225,8 @@ Resources:
                   return {
                       'statusCode': 500,
                       'headers': {'Content-Type': 'text/html'},
-                      'body': error_html
+                      'body': error_html,
+                      'isBase64Encoded': False
                   }
       Environment:
         Variables:
