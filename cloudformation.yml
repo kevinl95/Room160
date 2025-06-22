@@ -63,38 +63,38 @@ Resources:
                   # Handle GET request - serve HTML form
                   if event.get('httpMethod') == 'GET' or event.get('requestContext', {}).get('http', {}).get('method') == 'GET':
                       html_form = '''
-                        <!DOCTYPE html>
-                        <html>
-                        <head>
-                            <title>Room160 - Enroll Students</title>
-                            <style>
-                                body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
-                                h1 { color: #333; }
-                                textarea { width: 100%; height: 200px; margin: 10px 0; padding: 10px; }
-                                button { background: #007cba; color: white; padding: 15px 30px; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; }
-                                button:hover { background: #005a87; }
-                                .instructions { background: #f0f8ff; padding: 15px; border-radius: 5px; margin: 20px 0; }
-                            </style>
-                        </head>
-                        <body>
-                            <h1>Room160 Student Enrollment</h1>
-                            <div class="instructions">
-                                <h3>Instructions:</h3>
-                                <p>Enter student phone numbers below, one per line. You can use any format:</p>
-                                <ul>
-                                    <li>555-123-4567</li>
-                                    <li>(555) 123-4567</li>
-                                    <li>5551234567</li>
-                                    <li>+1 555 123 4567</li>
-                                </ul>
-                            </div>
-                            <form method="POST">
-                                <label for="numbers"><strong>Student Phone Numbers:</strong></label><br>
-                                <textarea name="numbers" id="numbers" placeholder="555-123-4567\n555-987-6543\n555-555-5555"></textarea><br>
-                                <button type="submit">Enroll Students & Send Welcome Messages</button>
-                            </form>
-                        </body>
-                        </html>'''
+                      <!DOCTYPE html>
+                      <html>
+                      <head>
+                          <title>Room160 - Enroll Students</title>
+                          <style>
+                              body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }
+                              h1 { color: #333; }
+                              textarea { width: 100%; height: 200px; margin: 10px 0; padding: 10px; }
+                              button { background: #007cba; color: white; padding: 15px 30px; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; }
+                              button:hover { background: #005a87; }
+                              .instructions { background: #f0f8ff; padding: 15px; border-radius: 5px; margin: 20px 0; }
+                          </style>
+                      </head>
+                      <body>
+                          <h1>Room160 Student Enrollment</h1>
+                          <div class="instructions">
+                              <h3>Instructions:</h3>
+                              <p>Enter student phone numbers below, one per line. You can use any format:</p>
+                              <ul>
+                                  <li>555-123-4567</li>
+                                  <li>(555) 123-4567</li>
+                                  <li>5551234567</li>
+                                  <li>+1 555 123 4567</li>
+                              </ul>
+                          </div>
+                          <form method="POST">
+                              <label for="numbers"><strong>Student Phone Numbers:</strong></label><br>
+                              <textarea name="numbers" id="numbers" placeholder="555-123-4567\n555-987-6543\n555-555-5555"></textarea><br>
+                              <button type="submit">Enroll Students & Send Welcome Messages</button>
+                          </form>
+                      </body>
+                      </html>'''
                       return {
                           'statusCode': 200,
                           'headers': {'Content-Type': 'text/html'},
@@ -151,28 +151,28 @@ Resources:
                   # Return HTML response for form submission
                   if event.get('headers', {}).get('content-type', '').startswith('application/x-www-form-urlencoded'):
                       success_html = f'''
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Room160 - Enrollment Complete</title>
-    <style>
-        body {{ font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }}
-        .success {{ background: #d4edda; color: #155724; padding: 15px; border-radius: 5px; margin: 20px 0; }}
-        .student {{ background: #f8f9fa; padding: 10px; margin: 5px 0; border-radius: 3px; }}
-        a {{ color: #007cba; text-decoration: none; }}
-        a:hover {{ text-decoration: underline; }}
-    </style>
-</head>
-<body>
-    <h1>Enrollment Complete!</h1>
-    <div class="success">
-        <strong>Successfully enrolled {len(enrolled)} students:</strong>
-    </div>
-    {''.join([f'<div class="student">✓ {student["phone"]}</div>' for student in enrolled])}
-    <p>All students have been sent welcome messages and can now text homework questions!</p>
-    <p><a href="{event.get('requestContext', {}).get('domainName', '')}{event.get('requestContext', {}).get('path', '')}">← Enroll More Students</a></p>
-</body>
-</html>'''
+                      <!DOCTYPE html>
+                      <html>
+                      <head>
+                          <title>Room160 - Enrollment Complete</title>
+                          <style>
+                              body {{ font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }}
+                              .success {{ background: #d4edda; color: #155724; padding: 15px; border-radius: 5px; margin: 20px 0; }}
+                              .student {{ background: #f8f9fa; padding: 10px; margin: 5px 0; border-radius: 3px; }}
+                              a {{ color: #007cba; text-decoration: none; }}
+                              a:hover {{ text-decoration: underline; }}
+                          </style>
+                      </head>
+                      <body>
+                          <h1>Enrollment Complete!</h1>
+                          <div class="success">
+                              <strong>Successfully enrolled {len(enrolled)} students:</strong>
+                          </div>
+                          {''.join([f'<div class="student">✓ {student["phone"]}</div>' for student in enrolled])}
+                          <p>All students have been sent welcome messages and can now text homework questions!</p>
+                          <p><a href="{event.get('requestContext', {}).get('domainName', '')}{event.get('requestContext', {}).get('path', '')}">← Enroll More Students</a></p>
+                      </body>
+                      </html>'''
                       return {
                           'statusCode': 200,
                           'headers': {'Content-Type': 'text/html'},
@@ -186,24 +186,24 @@ Resources:
                       }
               except Exception as e:
                   error_html = f'''
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Room160 - Error</title>
-    <style>
-        body {{ font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }}
-        .error {{ background: #f8d7da; color: #721c24; padding: 15px; border-radius: 5px; margin: 20px 0; }}
-        a {{ color: #007cba; text-decoration: none; }}
-    </style>
-</head>
-<body>
-    <h1>Enrollment Error</h1>
-    <div class="error">
-        <strong>Error:</strong> {str(e)}
-    </div>
-    <p><a href="{event.get('requestContext', {}).get('domainName', '')}{event.get('requestContext', {}).get('path', '')}">← Try Again</a></p>
-</body>
-</html>'''
+                  <!DOCTYPE html>
+                  <html>
+                  <head>
+                      <title>Room160 - Error</title>
+                      <style>
+                          body {{ font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; }}
+                          .error {{ background: #f8d7da; color: #721c24; padding: 15px; border-radius: 5px; margin: 20px 0; }}
+                          a {{ color: #007cba; text-decoration: none; }}
+                      </style>
+                  </head>
+                  <body>
+                      <h1>Enrollment Error</h1>
+                      <div class="error">
+                          <strong>Error:</strong> {str(e)}
+                      </div>
+                      <p><a href="{event.get('requestContext', {}).get('domainName', '')}{event.get('requestContext', {}).get('path', '')}">← Try Again</a></p>
+                  </body>
+                  </html>'''
                   return {
                       'statusCode': 500,
                       'headers': {'Content-Type': 'text/html'},
