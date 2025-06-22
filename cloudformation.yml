@@ -64,8 +64,8 @@ Resources:
                   # Debug: log the event structure
                   print(f"Event: {json.dumps(event)}")
                   
-                  # Handle GET request - serve HTML form (Lambda URL format)
-                  request_method = event.get('requestContext', {}).get('http', {}).get('method', 'GET')
+                  # Handle GET request - serve HTML form (API Gateway format)
+                  request_method = event.get('httpMethod', 'GET')
                   print(f"Request method: {request_method}")
                   
                   if request_method == 'GET':
@@ -235,11 +235,60 @@ Resources:
           WEBHOOK_URL: !GetAtt SMSWebhookURL.FunctionUrl
           TEACHER_EMAIL: !Ref TeacherEmail
 
-  EnrollmentURL:
-    Type: AWS::Lambda::Url
+  # API Gateway for enrollment form
+  EnrollmentAPI:
+    Type: AWS::ApiGateway::RestApi
     Properties:
-      TargetFunctionArn: !Ref EnrollmentFunction
-      AuthType: NONE
+      Name: "Room160-Enrollment-API"
+      Description: "API for student enrollment form"
+
+  EnrollmentResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref EnrollmentAPI
+      ParentId: !GetAtt EnrollmentAPI.RootResourceId
+      PathPart: "enroll"
+
+  EnrollmentMethodGET:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref EnrollmentAPI
+      ResourceId: !Ref EnrollmentResource
+      HttpMethod: GET
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${EnrollmentFunction.Arn}/invocations"
+
+  EnrollmentMethodPOST:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId: !Ref EnrollmentAPI
+      ResourceId: !Ref EnrollmentResource
+      HttpMethod: POST
+      AuthorizationType: NONE
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Uri: !Sub "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${EnrollmentFunction.Arn}/invocations"
+
+  EnrollmentDeployment:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn: 
+      - EnrollmentMethodGET
+      - EnrollmentMethodPOST
+    Properties:
+      RestApiId: !Ref EnrollmentAPI
+      StageName: "prod"
+
+  EnrollmentLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref EnrollmentFunction
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${EnrollmentAPI}/*/*"
 
   # Lambda URL for direct SMS webhook (simpler than API Gateway)
   SMSWebhookFunction:
@@ -469,5 +518,5 @@ Resources:
 
 Outputs:
   EnrollmentURL:
-    Description: "URL to enroll students (POST JSON with student phone numbers)"
-    Value: !GetAtt EnrollmentURL.FunctionUrl
+    Description: "URL to enroll students via web form"
+    Value: !Sub "https://${EnrollmentAPI}.execute-api.${AWS::Region}.amazonaws.com/prod/enroll"
