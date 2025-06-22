@@ -332,7 +332,7 @@ Resources:
               - Effect: Allow
                 Action:
                   - ssm:GetParameter
-                Resource: !Ref TextBeltKeyParameter
+                Resource: !Sub "arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/${AWS::StackName}/textbelt-api-key"
 
   Room160RouterFunction:
     Type: AWS::Lambda::Function
