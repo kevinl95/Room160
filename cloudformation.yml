@@ -494,14 +494,16 @@ Resources:
                   print(f"Calling Bedrock with prompt length: {len(prompt)}")
                   
                   response = bedrock_runtime.invoke_model(
-                      modelId="anthropic.claude-3-sonnet-20240229-v1:0",
+                      modelId="anthropic.claude-3-5-sonnet-20240620-v1:0",
                       body=json.dumps({
-                          "prompt": prompt,
-                          "max_tokens_to_sample": 300,
-                          "temperature": 0.5,
-                          "top_k": 250,
-                          "top_p": 0.9,
-                          "stop_sequences": ["\n\nHuman:"]
+                          "anthropic_version": "bedrock-2023-05-31",
+                          "max_tokens": 300,
+                          "messages": [
+                              {
+                                  "role": "user",
+                                  "content": f"You are an educational assistant for school students. Your responses will be sent via SMS to mobile phones, so keep answers concise but helpful. Use simple language and short sentences. Always be safe and educational. NEVER include URLs, links, or web addresses in your responses. Do not respond to inappropriate messages.\n\n{message}"
+                              }
+                          ]
                       }),
                       contentType="application/json",
                       accept="application/json"
@@ -509,7 +511,7 @@ Resources:
 
                   print(f"Bedrock response received")
                   result = json.loads(response['body'].read())
-                  ai_reply = result.get("completion", "Sorry, I couldn't answer that. Please ask your teacher.")
+                  ai_reply = result.get("content", [{}])[0].get("text", "Sorry, I couldn't answer that. Please ask your teacher.")
                   print(f"AI reply: {ai_reply[:100]}...")
 
                   # Send SMS response via TextBelt
@@ -573,7 +575,9 @@ Resources:
                   except Exception as sms_error:
                       print(f"Failed to send error SMS: {sms_error}")
 
-              return {"statusCode": 200, "body": "Response sent."}
+              # Always return 200 to prevent SNS from retrying failed messages
+              # This ensures students don't get duplicate responses or error loops
+              return {"statusCode": 200, "body": "Message processed - no retry needed"}
       Environment:
         Variables:
           TEACHER_TOPIC_ARN: !Ref Room160SNSTopic
