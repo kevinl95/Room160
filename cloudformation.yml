@@ -52,7 +52,8 @@ Resources:
         ZipFile: |
           import json
           import boto3
-          import requests
+          import urllib.request
+          import urllib.parse
           import os
 
           dynamodb = boto3.resource('dynamodb')
@@ -60,8 +61,13 @@ Resources:
 
           def lambda_handler(event, context):
               try:
+                  # Debug: log the event structure
+                  print(f"Event: {json.dumps(event)}")
+                  
                   # Handle GET request - serve HTML form (Lambda URL format)
                   request_method = event.get('requestContext', {}).get('http', {}).get('method', 'GET')
+                  print(f"Request method: {request_method}")
+                  
                   if request_method == 'GET':
                       html_form = '''
                       <!DOCTYPE html>
@@ -140,12 +146,17 @@ Resources:
                           WithDecryption=True
                       )['Parameter']['Value']
                       
-                      response = requests.post('https://textbelt.com/text', {
+                      # Send SMS via TextBelt using urllib
+                      data = urllib.parse.urlencode({
                           'phone': clean_phone,
                           'message': welcome_msg,
                           'replyWebhookUrl': os.environ['WEBHOOK_URL'],
                           'key': api_key
-                      })
+                      }).encode('utf-8')
+                      
+                      req = urllib.request.Request('https://textbelt.com/text', data=data, method='POST')
+                      req.add_header('Content-Type', 'application/x-www-form-urlencoded')
+                      response = urllib.request.urlopen(req)
                       
                       enrolled.append({'phone': clean_phone, 'status': 'enrolled'})
                   
@@ -186,6 +197,10 @@ Resources:
                           'body': json.dumps({'enrolled': enrolled})
                       }
               except Exception as e:
+                  print(f"Error in enrollment function: {str(e)}")
+                  import traceback
+                  print(f"Traceback: {traceback.format_exc()}")
+                  
                   error_html = f'''
                   <!DOCTYPE html>
                   <html>
@@ -202,7 +217,7 @@ Resources:
                       <div class="error">
                           <strong>Error:</strong> {str(e)}
                       </div>
-                      <p><a href="{event.get('requestContext', {}).get('domainName', '')}{event.get('requestContext', {}).get('path', '')}">← Try Again</a></p>
+                      <p><a href="#" onclick="window.location.reload()">← Try Again</a></p>
                   </body>
                   </html>'''
                   return {
@@ -391,18 +406,23 @@ Resources:
                   ai_reply = result.get("completion", "Sorry, I couldn't answer that. Please ask your teacher.")
 
                   # Send SMS response via TextBelt
-                  import requests
+                  import urllib.request
+                  import urllib.parse
                   ssm = boto3.client('ssm')
                   api_key = ssm.get_parameter(
                       Name=os.environ['TEXTBELT_KEY_PARAM'],
                       WithDecryption=True
                   )['Parameter']['Value']
                   
-                  requests.post('https://textbelt.com/text', {
+                  data = urllib.parse.urlencode({
                       'phone': sender,
                       'message': ai_reply.strip(),
                       'key': api_key
-                  })
+                  }).encode('utf-8')
+                  
+                  req = urllib.request.Request('https://textbelt.com/text', data=data, method='POST')
+                  req.add_header('Content-Type', 'application/x-www-form-urlencoded')
+                  urllib.request.urlopen(req)
 
               except Exception as e:
                   print(f"AI Error: {e}")
@@ -411,18 +431,23 @@ Resources:
                       Message=f"AI failed to respond to message from {sender}:\n\n{message}"
                   )
                   # Send error SMS via TextBelt
-                  import requests
+                  import urllib.request
+                  import urllib.parse
                   ssm = boto3.client('ssm')
                   api_key = ssm.get_parameter(
                       Name=os.environ['TEXTBELT_KEY_PARAM'],
                       WithDecryption=True
                   )['Parameter']['Value']
                   
-                  requests.post('https://textbelt.com/text', {
+                  data = urllib.parse.urlencode({
                       'phone': sender,
                       'message': "I'm not sure how to answer that. Please ask your teacher.",
                       'key': api_key
-                  })
+                  }).encode('utf-8')
+                  
+                  req = urllib.request.Request('https://textbelt.com/text', data=data, method='POST')
+                  req.add_header('Content-Type', 'application/x-www-form-urlencoded')
+                  urllib.request.urlopen(req)
 
               return {"statusCode": 200, "body": "Response sent."}
       Environment:
