@@ -139,7 +139,7 @@ Resources:
                       table.put_item(Item={'phoneNumber': clean_phone})
                       
                       # Send welcome message via TextBelt (avoid including email to prevent URL detection)
-                      welcome_msg = "Welcome to Room160 homework help! Text your questions here for instant AI assistance. Start messages with @teacher to reach your teacher directly."
+                      welcome_msg = "Welcome to Room160 homework help! Text your questions here for instant AI assistance. Start messages with @teacher to reach your teacher directly- be sure to include your name and a way for them to get in touch with you."
                       # Get API key from Parameter Store
                       ssm = boto3.client('ssm')
                       api_key = ssm.get_parameter(
@@ -349,6 +349,7 @@ Resources:
       Environment:
         Variables:
           SNS_TOPIC_ARN: !Ref Room160SNSTopic
+          ENABLE_AI: !Ref EnableAI
 
   # API Gateway for SMS webhook
   SMSWebhookAPI:
@@ -451,7 +452,7 @@ Resources:
       Runtime: python3.11
       Handler: index.lambda_handler
       Role: !GetAtt Room160LambdaRole.Arn
-      Timeout: 15
+      Timeout: 120
       Code:
         ZipFile: |
           import json
@@ -462,19 +463,27 @@ Resources:
           sns = boto3.client("sns")
 
           def lambda_handler(event, context):
+              print(f"Router Lambda invoked with event: {json.dumps(event)}")
+              
               record = event['Records'][0]['Sns']
               message = record['Message']
               sender = record.get('MessageAttributes', {}).get('SenderID', {}).get('Value', 'Unknown')
               ai_enabled = os.environ.get("ENABLE_AI", "true") == "true"
+              
+              print(f"Processing message from {sender}: {message}")
+              print(f"AI enabled: {ai_enabled}")
 
               if message.lower().startswith("@teacher") or not ai_enabled:
                   sns.publish(
                       TopicArn=os.environ['TEACHER_TOPIC_ARN'],
-                      Message=f"Student message from {sender}:\n\n{message}"
+                      Subject=f"Room160: Student Message from {sender}",
+                      Message=f"Student: {sender}\n\nMessage: {message}\n\n---\nTo respond, text the student directly at {sender}"
                   )
                   return {"statusCode": 200, "body": "Forwarded to teacher."}
 
               try:
+                  print(f"Processing AI request for message: {message}")
+                  
                   prompt = f"\n\nHuman: You are an educational assistant for school students. " \
                            f"Your responses will be sent via SMS to mobile phones, so keep answers concise but helpful. " \
                            f"Use simple language and short sentences. Always be safe and educational. " \
@@ -482,6 +491,8 @@ Resources:
                            f"Do not respond to inappropriate messages.\n\n" \
                            f"Human: {message}\n\nAssistant:"
 
+                  print(f"Calling Bedrock with prompt length: {len(prompt)}")
+                  
                   response = bedrock_runtime.invoke_model(
                       modelId="anthropic.claude-3-sonnet-20240229-v1:0",
                       body=json.dumps({
@@ -496,18 +507,23 @@ Resources:
                       accept="application/json"
                   )
 
+                  print(f"Bedrock response received")
                   result = json.loads(response['body'].read())
                   ai_reply = result.get("completion", "Sorry, I couldn't answer that. Please ask your teacher.")
+                  print(f"AI reply: {ai_reply[:100]}...")
 
                   # Send SMS response via TextBelt
                   import urllib.request
                   import urllib.parse
+                  print(f"Getting TextBelt API key from Parameter Store")
+                  
                   ssm = boto3.client('ssm')
                   api_key = ssm.get_parameter(
                       Name=os.environ['TEXTBELT_KEY_PARAM'],
                       WithDecryption=True
                   )['Parameter']['Value']
                   
+                  print(f"Sending SMS to {sender}")
                   data = urllib.parse.urlencode({
                       'phone': sender,
                       'message': ai_reply.strip(),
@@ -516,32 +532,46 @@ Resources:
                   
                   req = urllib.request.Request('https://textbelt.com/text', data=data, method='POST')
                   req.add_header('Content-Type', 'application/x-www-form-urlencoded')
-                  urllib.request.urlopen(req)
+                  textbelt_response = urllib.request.urlopen(req)
+                  textbelt_result = textbelt_response.read().decode('utf-8')
+                  print(f"TextBelt response: {textbelt_result}")
 
               except Exception as e:
                   print(f"AI Error: {e}")
+                  import traceback
+                  print(f"Full traceback: {traceback.format_exc()}")
+                  print(f"Error type: {type(e).__name__}")
+                  print(f"Error args: {e.args}")
                   sns.publish(
                       TopicArn=os.environ['TEACHER_TOPIC_ARN'],
-                      Message=f"AI failed to respond to message from {sender}:\n\n{message}"
+                      Subject=f"Room160: AI Error - Student {sender}",
+                      Message=f"Student: {sender}\n\nMessage: {message}\n\nError: AI failed to respond\n\n---\nTo respond, text the student directly at {sender}"
                   )
                   # Send error SMS via TextBelt
-                  import urllib.request
-                  import urllib.parse
-                  ssm = boto3.client('ssm')
-                  api_key = ssm.get_parameter(
-                      Name=os.environ['TEXTBELT_KEY_PARAM'],
-                      WithDecryption=True
-                  )['Parameter']['Value']
-                  
-                  data = urllib.parse.urlencode({
-                      'phone': sender,
-                      'message': "I'm not sure how to answer that. Please ask your teacher.",
-                      'key': api_key
-                  }).encode('utf-8')
-                  
-                  req = urllib.request.Request('https://textbelt.com/text', data=data, method='POST')
-                  req.add_header('Content-Type', 'application/x-www-form-urlencoded')
-                  urllib.request.urlopen(req)
+                  try:
+                      import urllib.request
+                      import urllib.parse
+                      print(f"Sending error SMS to {sender}")
+                      
+                      ssm = boto3.client('ssm')
+                      api_key = ssm.get_parameter(
+                          Name=os.environ['TEXTBELT_KEY_PARAM'],
+                          WithDecryption=True
+                      )['Parameter']['Value']
+                      
+                      data = urllib.parse.urlencode({
+                          'phone': sender,
+                          'message': "I'm not sure how to answer that. Please ask your teacher.",
+                          'key': api_key
+                      }).encode('utf-8')
+                      
+                      req = urllib.request.Request('https://textbelt.com/text', data=data, method='POST')
+                      req.add_header('Content-Type', 'application/x-www-form-urlencoded')
+                      error_response = urllib.request.urlopen(req)
+                      error_result = error_response.read().decode('utf-8')
+                      print(f"Error SMS TextBelt response: {error_result}")
+                  except Exception as sms_error:
+                      print(f"Failed to send error SMS: {sms_error}")
 
               return {"statusCode": 200, "body": "Response sent."}
       Environment:
@@ -557,6 +587,14 @@ Resources:
       Action: lambda:InvokeFunction
       Principal: sns.amazonaws.com
       SourceArn: !Ref Room160SNSTopic
+
+  # SNS subscription to trigger Router Lambda
+  RouterLambdaSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: lambda
+      Endpoint: !GetAtt Room160RouterFunction.Arn
+      TopicArn: !Ref Room160SNSTopic
 
 Outputs:
   EnrollmentURL:
