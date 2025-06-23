@@ -1,3 +1,5 @@
+![Room160 - Connecting Students](./assets/logo.png)
+
 # Room160: SMS Homework Help for Every Student
 
 [![Lint CloudFormation Template](https://github.com/kevinl95/Room160/actions/workflows/main.yml/badge.svg)](https://github.com/kevinl95/Room160/actions/workflows/main.yml)
